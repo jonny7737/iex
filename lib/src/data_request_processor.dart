@@ -18,12 +18,14 @@ class ChartData {
 }
 
 class DataRequestProcessor with ChangeNotifier {
-  /// Queue entries are Map<String, Map<String, String>>
+  /// Queue entries are Map<String, Map<String, String>>.
   ///
-  /// Map of function name and Map of function parameters
+  /// Map of function name and Map of function parameters.
   ///
   /// Poll the request queue every 500 milliseconds, process all queue entries.
   ///
+  /// serviceEndPoint parameter string is either
+  /// 'IEX' for production or 'IEX_SB' for sandbox.
   DataRequestProcessor(String serviceEndPoint) {
     _init(serviceEndPoint);
     processing = false;
