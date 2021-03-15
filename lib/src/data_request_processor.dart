@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:flutter/foundation.dart';
 import 'package:iex/src/JSONObject.dart';
 import 'package:iex/src/stocks.dart';
 
@@ -17,7 +16,7 @@ class ChartData {
   final double volume;
 }
 
-class DataRequestProcessor with ChangeNotifier {
+class DataRequestProcessor {
   /// Queue entries are Map<String, Map<String, String>>.
   ///
   /// Map of function name and Map of function parameters.
@@ -49,12 +48,6 @@ class DataRequestProcessor with ChangeNotifier {
   List<ChartData> chartData = [];
   double minY;
   double maxY;
-
-  @override
-  dispose() {
-    timer?.cancel();
-    super.dispose();
-  }
 
   double _zoomLevel = 1.0;
 
