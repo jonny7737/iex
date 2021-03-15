@@ -198,8 +198,9 @@ class DataRequestProcessor with ChangeNotifier {
   ///    ]);
   ///```
   ///-
-  void requestData(List<Map<String, dynamic>> request) {
+  void requestData(List<Map<String, dynamic>> request, [Function callback]) {
     queue.add(request);
+    queue.add(callback);
   }
 
   void _processQueue() async {
@@ -209,10 +210,14 @@ class DataRequestProcessor with ChangeNotifier {
     // API calls with a non-Business account.
     while (queue.isNotEmpty) {
       //  Process IEX API calls one at a time.
-      if (await _processRequest(queue.first)) queue.removeFirst();
+      if (await _processRequest(queue.first)) {
+        queue.removeFirst();
+        Function callBack = queue.removeFirst();
+        if (callBack != null) callBack();
+      }
     }
     processing = false;
-    notifyListeners();
+    // notifyListeners();
   }
 
   Map<Symbol, dynamic> _paramsBuilder(Map<String, dynamic> requestParams) {
