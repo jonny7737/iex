@@ -61,6 +61,7 @@ class StockMeta {
   }
 
   Future<String> getNameBySymbol(String symbol) async {
+    if (!(await isDBOpen)) return null;
     var coList = await db.find({'symbol': symbol.toUpperCase()});
     if (coList.isEmpty) return null;
     return coList[0]['name'];

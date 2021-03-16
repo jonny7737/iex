@@ -262,6 +262,11 @@ class DataRequestProcessor {
     return await sm.getNameBySymbol(symbol);
   }
 
+  Future<bool> get isSymbolDBOpen  async {
+    print('Company name lookup started...');
+    return await sm.isDBOpen;
+  }
+
   Future<JSONObject> _intraDay({String symbol}) async {
     return await ts.intraDay(symbol: symbol);
   }
