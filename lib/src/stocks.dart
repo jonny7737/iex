@@ -34,7 +34,7 @@ class StockMeta {
     db = ObjectDB(dbFilePath);
     await db.open();
     //  Update StockInfo DB.
-    _getSymbolList(await numberOfSymbols != 0);
+    // _getSymbolList(await numberOfSymbols != 0);
 
     print('StockMeta inited');
     initED = true;
