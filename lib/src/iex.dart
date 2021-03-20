@@ -2,8 +2,6 @@ import 'package:iex/src/BaseAPI.dart';
 import 'package:iex/src/JSONObject.dart';
 
 class IEX extends BaseAPI {
-  String _timeseries = 'time-series';
-
   IEX(String key) : super(key);
 
   Future<List<String>> inventory() async {
@@ -11,7 +9,7 @@ class IEX extends BaseAPI {
 
     List<String> tsInventory = [];
 
-    JSONObject json = await this.getRequest(function: _timeseries);
+    JSONObject json = await this.getRequest(function: 'time-series');
     // print('${json.getJSONMap()}');
     json.jsonListContents.forEach((element) {
       if (!element['id'].toString().startsWith('PREMIUM')) {

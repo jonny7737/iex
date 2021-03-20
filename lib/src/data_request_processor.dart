@@ -56,14 +56,12 @@ class DataRequestProcessor {
   double get incZoomLevel {
     _zoomLevel += 0.1;
     if (_zoomLevel > 1.0) _zoomLevel = 1.0;
-    // print('inc : $_zoomLevel');
     return _zoomLevel;
   }
 
   double get decZoomLevel {
     _zoomLevel -= 0.1;
     if (_zoomLevel < 0.0) _zoomLevel = 0.0;
-    // print('dec : $_zoomLevel');
     return _zoomLevel;
   }
 
@@ -109,7 +107,6 @@ class DataRequestProcessor {
     if (chartData.isNotEmpty) {
       minimumDate = chartData[0].date;
     }
-    // print('Days of ChartData ${chartData.length}');
     return chartData;
   }
 
@@ -123,7 +120,6 @@ class DataRequestProcessor {
     Map<DateTime, Map<String, double>> c = {};
 
     dataSets.forEach((key, value) {
-      // print(value.last['minute']);
       if (!key.startsWith(symbol)) return;
       String dataSetType = key.split(RegExp(r'[\[\]]'))[1];
       if (dataSetType.contains('chart') || dataSetType.contains('intraDay')) {
@@ -133,11 +129,11 @@ class DataRequestProcessor {
             date = DateTime.parse(e['date'] + ' ${e["minute"]}');
           } else
             date = DateTime.parse(e['date']);
-          double open = e['fOpen']?.toDouble() ?? e['open'].toDouble();
-          double high = e['fHigh']?.toDouble() ?? e['high'].toDouble();
-          double low = e['fLow']?.toDouble() ?? e['low'].toDouble();
-          double close = e['fClose']?.toDouble() ?? e['close'].toDouble();
-          double volume = e['fVolume']?.toDouble() ?? e['volume'].toDouble();
+          double open = e['fOpen']?.toDouble() ?? e['open']?.toDouble();
+          double high = e['fHigh']?.toDouble() ?? e['high']?.toDouble();
+          double low = e['fLow']?.toDouble() ?? e['low']?.toDouble();
+          double close = e['fClose']?.toDouble() ?? e['close']?.toDouble();
+          double volume = e['fVolume']?.toDouble() ?? e['volume']?.toDouble();
           Map<String, double> _c = {
             'open': open,
             'high': high,
@@ -170,7 +166,6 @@ class DataRequestProcessor {
     }
 
     if (jsonMap is List) {
-      // print(jsonMap[0]);
       dataSets.update(name, (value) => jsonMap, ifAbsent: () => jsonMap);
     } else
       print(jsonMap);
@@ -224,8 +219,6 @@ class DataRequestProcessor {
   Future<bool> _processRequest(List<Map<String, dynamic>> request) async {
     JSONObject resp;
 
-    // print(request.first);
-
     while (request.length > 0) {
       Map<Symbol, dynamic> params = _paramsBuilder(request.first);
       Map<String, dynamic> req = request.first;
@@ -236,7 +229,6 @@ class DataRequestProcessor {
       if (req['fn'] == 'intra') {
         resp = await Function.apply(_intraDay, null, params);
         dataSetName = '${req['symbol']}[intraDay]';
-        // print('_intraDay: ${resp.jsonListContents}');
       }
       if (req['fn'] == 'ti') {
         resp = await Function.apply(_techInd, null, params);
@@ -246,9 +238,7 @@ class DataRequestProcessor {
         resp = await Function.apply(_stockBatch, null, params);
         dataSetName = '${req['symbol']}[${req['range']} chart]';
       }
-      // print('Response: $resp');
       if (resp.get('ERROR') != null) {
-        // showMyDialog('${resp.jsonContents.toString()}');
         return false;
       }
       if (resp != null) _updateDataSets(dataSetName, resp);
@@ -258,13 +248,8 @@ class DataRequestProcessor {
   }
 
   Future<String> getCoNameBySymbol(String symbol) async {
-    print('Company name lookup started...');
-    return await sm.getNameBySymbol(symbol);
-  }
-
-  Future<bool> get isSymbolDBOpen  async {
-    print('Company name lookup started...');
-    return await sm.isDBOpen;
+    String coName = await sm.getNameBySymbol(symbol);
+    return coName;
   }
 
   Future<JSONObject> _intraDay({String symbol}) async {
@@ -295,32 +280,4 @@ class DataRequestProcessor {
       {String symbol, String ti, String range, String period}) async {
     return await ts.ti(symbol: symbol, ti: ti, range: range, period: period);
   }
-
-  // bool dialogActive = false;
-  // Future<void> showMyDialog(String message) async {
-  //   if (dialogActive == true) return;
-  //   dialogActive = true;
-  //   await showDialog(
-  //     useSafeArea: true,
-  //     barrierDismissible: true,
-  //     context: navigatorKey.currentContext,
-  //     builder: (context) => Center(
-  //       child: Container(
-  //         padding: EdgeInsets.all(6),
-  //         width: Platform.isMacOS ? 500 : 300,
-  //         child: Text(
-  //           message,
-  //           style: TextStyle(fontSize: 14),
-  //           textAlign: TextAlign.center,
-  //         ),
-  //         decoration: BoxDecoration(
-  //             color: Colors.yellow,
-  //             borderRadius: BorderRadius.all(
-  //               Radius.circular(12.0),
-  //             )),
-  //       ),
-  //     ),
-  //   ).timeout(Duration(seconds: 30));
-  //   dialogActive = false;
-  // }
 }

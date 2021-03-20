@@ -1,6 +1,5 @@
 import 'dart:io';
 
-// import 'package:iex/globals.dart';
 import 'package:iex/iex.dart';
 import 'package:objectdb/objectdb.dart';
 import 'package:path_provider/path_provider.dart';
@@ -29,70 +28,66 @@ class StockMeta {
     Directory appDocDir = await getApplicationDocumentsDirectory();
 
     String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
-    // print('File path: $dbFilePath');
+
+    // if (await File(dbFilePath).exists()) File(dbFilePath).deleteSync();
 
     db = ObjectDB(dbFilePath);
     await db.open();
-    //  Update StockInfo DB.
-    // _getSymbolList(await numberOfSymbols != 0);
-
-    print('StockMeta inited');
     initED = true;
   }
 
-  Future<bool> get isDBOpen async {
-    int maxLoops = 10; // wait no more than 5 seconds for open db.
+  Future<bool> get dbIsOpen async {
     while (db == null) {
-      await Future.delayed(Duration(milliseconds: 500));
-      maxLoops--;
-      if (maxLoops < 0) return false;
+      await Future.delayed(Duration(milliseconds: 200));
     }
+
     return true;
   }
 
   Future clearDB() async {
-    await db.remove({}); //  Remove all entries from the database.
+    await db?.remove({}); //  Remove all entries from the database.
+  }
+
+  Future<void> _symbolDBReady() async {
+    if ((await numberOfSymbols) == 0) {
+      await _getSymbolList(true);
+    }
+    var numSymbols = await this.numberOfSymbols;
+    while (numSymbols < 1000) {
+      Future.delayed(Duration(milliseconds: 200));
+      numSymbols = await this.numberOfSymbols;
+    }
+    return;
   }
 
   Future<int> get numberOfSymbols async {
-    if (!(await isDBOpen)) return null;
-    return (await db?.first({})).length;
-    // return (await db?.find({}))?.length;
+    int s = (await db?.find({}))?.length;
+    return s ?? 0;
   }
 
   Future<String> getNameBySymbol(String symbol) async {
-    if (!(await isDBOpen)) return null;
+    await _symbolDBReady();
     var coList = await db.find({'symbol': symbol.toUpperCase()});
     if (coList.isEmpty) return null;
     return coList[0]['name'];
   }
 
-  void _getSymbolList(bool checkExpired) async {
+  Future<void> _getSymbolList(bool checkExpired) async {
+    await dbIsOpen;
+
     int updatedDaysAgo = -1;
-    if (checkExpired)
+    int len = (await db?.find({}))?.length;
+
+    if (checkExpired && len > 0)
       updatedDaysAgo = DateTime.now()
           .difference(DateTime.parse((await db.first({}))['date']))
           .inDays;
 
-    // print('Days since last symbol list update: $updatedDaysAgo');
     if (updatedDaysAgo >= 0 && updatedDaysAgo < 7) return;
 
-    // print('Getting symbol list from IEX.');
+    clearDB();
+
     var jsonObject = await ts.getSymbolList();
-    // print('IEX symbols request returned.');
     await db.insertMany(jsonObject.getJSONMap());
-    // print('Symbols inserted into DB: ${(await db.find({})).length}');
-
-    // jsonObject.jsonListContents.forEach((s) {
-    //   symbols.add(Symbols(
-    //     s['symbol'],
-    //     s['exchangeName'],
-    //     s['name'],
-    //     s['region'],
-    //     s['currency'],
-    //   ));
-    // });
-
-    // db?.close();
   }
 }
