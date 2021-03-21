@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:iex/iex.dart';
 import 'package:objectdb/objectdb.dart';
+// ignore: implementation_imports
+import 'package:objectdb/src/objectdb_storage_filesystem.dart';
 import 'package:path_provider/path_provider.dart';
 
 class StockInfo {
@@ -29,10 +31,7 @@ class StockMeta {
 
     String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
 
-    // if (await File(dbFilePath).exists()) File(dbFilePath).deleteSync();
-
-    db = ObjectDB(dbFilePath);
-    await db.open();
+    db = ObjectDB(FileSystemStorage(dbFilePath));
     initED = true;
   }
 

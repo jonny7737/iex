@@ -11,11 +11,10 @@ dependencies:
   flutter:
     sdk: flutter
 
-  http: ^0.13.0
+  http: ^0.13.1
   path_provider: ^2.0.1
 
-  # -dev version required due to 1.0.10 incompatibility with latest Flutter / Dart
-  objectdb: 1.1.2-dev
+  objectdb: ^1.2.1
 
 dev_dependencies:
   flutter_test:
