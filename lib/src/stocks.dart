@@ -31,7 +31,9 @@ class StockMeta {
 
     String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
 
-    db = ObjectDB(FileSystemStorage(dbFilePath));
+    db = await Future.microtask(() => ObjectDB(FileSystemStorage(dbFilePath)));
+
+    // db = ObjectDB(FileSystemStorage(dbFilePath));
     initED = true;
   }
 
