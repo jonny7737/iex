@@ -48,23 +48,6 @@ class DataRequestProcessor {
   List<ChartData> chartData = [];
   double minY;
   double maxY;
-
-  double _zoomLevel = 1.0;
-
-  void resetZoomLevel() => _zoomLevel = 1.0;
-
-  double get incZoomLevel {
-    _zoomLevel += 0.1;
-    if (_zoomLevel > 1.0) _zoomLevel = 1.0;
-    return _zoomLevel;
-  }
-
-  double get decZoomLevel {
-    _zoomLevel -= 0.1;
-    if (_zoomLevel < 0.0) _zoomLevel = 0.0;
-    return _zoomLevel;
-  }
-
   DateTime minimumDate;
 
   void clearAll() => chartData.clear();
