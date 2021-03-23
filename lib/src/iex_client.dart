@@ -1,11 +1,11 @@
 import 'dart:async';
-
-import 'package:http/http.dart';
+import 'dart:convert';
+import 'dart:io';
 
 class IEXClient {
-  String _sandboxURL = 'sandbox.iexapis.com';
-  String _baseURL = 'cloud.iexapis.com';
-  String _apiVersion = 'stable';
+  final String _sandboxURL = 'sandbox.iexapis.com';
+  final String _baseURL = 'cloud.iexapis.com';
+  final String _apiVersion = 'stable';
 
   bool _useSandBox = true;
   String url;
@@ -34,7 +34,9 @@ class IEXClient {
   /// Technical Indicators
   ///
 
-  Client _client = Client();
+  // Client _client = Client();
+  HttpClient _client = HttpClient();
+
   static final IEXClient _iexClient = IEXClient.internal();
 
   IEXClient.internal({bool sandbox: true}) {
@@ -45,7 +47,7 @@ class IEXClient {
     return _iexClient;
   }
 
-  Future<Response> get(
+  Future<String> get(
       {String function = "time-series",
       String symbol,
       String symbols,
@@ -57,7 +59,7 @@ class IEXClient {
       String types,
       String filter,
       bool closeOnly,
-      bool indicatorOnly}) {
+      bool indicatorOnly}) async {
     Map<String, String> queryParams = _buildQueryParams(
         symbols: symbols,
         apiKey: apiKey,
@@ -71,36 +73,79 @@ class IEXClient {
     List<String> pathSegments;
     pathSegments = [
       _apiVersion,
-      function != 'intraday-prices' ? function : 'stock',
+      (function != 'intraday-prices' && function != 'price') ? function : 'stock',
       symbol,
       indicator != null ? 'indicator' : null,
       indicator != null ? '$indicator' : null,
       market,
       (function == 'stock' && indicator == null) ? 'batch' : null,
       function == 'intraday-prices' ? function : null,
+      function == 'price' ? function : null,
     ];
 
     pathSegments.removeWhere((element) => element == null);
 
-    // print(pathSegments);
-
-    Uri uriRequest = Uri(
+    Uri uriRequest;
+    uriRequest = Uri(
         scheme: "https",
         host: _useSandBox ? this._sandboxURL : this._baseURL,
-        // path: '/stable/' + function,
         pathSegments: pathSegments,
         queryParameters: queryParams);
+    // print("Calling client with URL: " + uriRequest.toString());
 
-    print("Calling client with URL: " + uriRequest.toString());
+    // var request = await HttpClient().getUrl(uriRequest);
+    // // sends the request
+    // HttpClientResponse response = await request.close();
+    // print('Response status code: ${response.statusCode}');
 
-    Future<Response> response = this._client.get(uriRequest);
-    response.then((Response response) {
-      // print("Response from server: " +
-      //     response.body.length.toString() +
-      //     ' bytes');
-    });
+    var response = await getUrlWithRetry(_client, uriRequest);
+    // print('Response string[${await response.length} bytes]');
+    String respStr = '';
+    // transforms and prints the response
+    await for (var contents in response.transform(Utf8Decoder())) {
+      // print('content length: ${contents.length}');
+      respStr += contents;
+    }
 
-    return response;
+    // print('Response string: \n$respStr');
+
+    // Future<Response> response =
+    // Future<String> responseStr;
+    // this._client.getUrl(uriRequest).then((HttpClientRequest request) {
+    //   // Optionally set up headers...
+    //   // Optionally write to the request object...
+    //   // Then call close.
+    //   return request.close();
+    // }).then((HttpClientResponse response) async {
+    //   responseStr = readResponse(response);
+    // });
+
+    // response.then((Response response) {
+    //   // print("Response from server: " +
+    //   //     response.body.length.toString() +
+    //   //     ' bytes');
+    // });
+    // print('$resp');
+    return respStr;
+  }
+
+  Future<HttpClientResponse> getUrlWithRetry(HttpClient httpClient, Uri url,
+      {int maxRetries = 5}) async {
+    for (var attempt = 0; attempt < maxRetries; attempt++) {
+      final request = await httpClient.openUrl('GET', url);
+      final response = await request.close();
+      return response;
+    }
+    return null;
+  }
+
+  Future<String> readResponse(HttpClientResponse response) {
+    final completer = Completer<String>();
+    final contents = StringBuffer();
+    response.transform(utf8.decoder).listen((data) {
+      contents.write(data);
+    }, onDone: () => completer.complete(contents.toString()));
+    return completer.future;
   }
 
   Map<String, String> _buildQueryParams(
@@ -126,8 +171,7 @@ class IEXClient {
     return queryParams;
   }
 
-  _updateQueryMap(
-      Map<String, String> currentHeaders, String param, String paramValue) {
+  _updateQueryMap(Map<String, String> currentHeaders, String param, String paramValue) {
     if (paramValue != null) {
       currentHeaders[param] = paramValue;
     }

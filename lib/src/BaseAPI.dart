@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:http/http.dart';
 import 'package:iex/src/JSONObject.dart';
 import 'package:iex/src/iex_client.dart';
 
@@ -43,7 +42,8 @@ class BaseAPI {
     bool closeOnly,
     bool indicatorOnly,
   }) async {
-    Response response = await this.client.get(
+    String response;
+    response = await this.client.get(
           function: function,
           symbol: symbol,
           symbols: symbols,
@@ -58,24 +58,24 @@ class BaseAPI {
           indicatorOnly: indicatorOnly,
         );
 
-    // print('[BaseAPI] ${response.body.toString()}');
-    if (_validateResponse(response)) return JSONObject(response.body);
-    return JSONObject('{ERROR:"${response.body}"}');
+    // print('[BaseAPI] ${response.toString()}');
+    if (_validateResponse(response)) return JSONObject(response);
+    return JSONObject('{ERROR:"$response"}');
   }
 
-  bool _validateResponse(Response response) {
-    if (response.statusCode != 200) return false;
+  bool _validateResponse(String response) {
+    // if (response.statusCode != 200) return false;
     return true;
   }
 
-  Map<String, dynamic> toJson(Response response) {
-    if (response.statusCode == 200) {
-      // print(response.body);
-      return json.decode(response.body);
-    } else {
-      throw Exception(
-          "Failed to get data from iex server. Response from server:" +
-              response.body.toString());
-    }
+  Map<String, dynamic> toJson(String response) {
+    // if (response.statusCode == 200) {
+    //   // print(response.body);
+    return json.decode(response);
+    // } else {
+    //   throw Exception(
+    //       "Failed to get data from iex server. Response from server:" +
+    //           response.body.toString());
+    // }
   }
 }

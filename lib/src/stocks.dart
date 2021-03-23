@@ -24,22 +24,27 @@ class StockMeta {
   ObjectDB db;
   bool initED = false;
 
+  int numSymbols;
+
   _init(String serviceEndPoint) async {
     ts = IEX(serviceEndPoint);
 
-    Directory appDocDir = await getApplicationDocumentsDirectory();
+    // await Future.microtask(() async {
+    //   db = ObjectDB(InMemoryStorage());
+    // });
 
-    String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
+    await Future.microtask(() async {
+      Directory appDocDir = await getApplicationDocumentsDirectory();
+      String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
+      db = ObjectDB(FileSystemStorage(dbFilePath));
+    });
 
-    db = await Future.microtask(() => ObjectDB(FileSystemStorage(dbFilePath)));
-
-    // db = ObjectDB(FileSystemStorage(dbFilePath));
     initED = true;
   }
 
   Future<bool> get dbIsOpen async {
     while (db == null) {
-      await Future.delayed(Duration(milliseconds: 200));
+      await Future.delayed(Duration(milliseconds: 100));
     }
 
     return true;
@@ -50,25 +55,39 @@ class StockMeta {
   }
 
   Future<void> _symbolDBReady() async {
-    if ((await numberOfSymbols) == 0) {
+    await dbIsOpen;
+    int numSymbols = await numberOfSymbols;
+    if (numSymbols == 0) {
+      // print('No symbols in list [$numSymbols]');
       await _getSymbolList(true);
-    }
-    var numSymbols = await this.numberOfSymbols;
-    while (numSymbols < 1000) {
-      Future.delayed(Duration(milliseconds: 200));
-      numSymbols = await this.numberOfSymbols;
     }
     return;
   }
 
   Future<int> get numberOfSymbols async {
-    int s = (await db?.find({}))?.length;
-    return s ?? 0;
+    await dbIsOpen;
+    if (numSymbols == null || numSymbols == 0) {
+      // DateTime start = DateTime.now();
+      int s = (await db.find({})).length;
+      // int duration = DateTime.now().difference(start).inMilliseconds;
+      // print('Time to # of symbols: $duration mS');
+      numSymbols = s;
+      // print('s = $s');
+    }
+    return numSymbols ?? 0;
   }
 
   Future<String> getNameBySymbol(String symbol) async {
+    // DateTime start = DateTime.now();
     await _symbolDBReady();
+    // int runTime = DateTime.now().difference(start).inMilliseconds;
+    // print('Time to symbol DB ready[includes time to #symbols: $runTime mS');
+
+    // start = DateTime.now();
     var coList = await db.find({'symbol': symbol.toUpperCase()});
+    // runTime = DateTime.now().difference(start).inMilliseconds;
+    // print('Time to find [$symbol]: $runTime mS');
+
     if (coList.isEmpty) return null;
     return coList[0]['name'];
   }

@@ -5,11 +5,15 @@ class JSONObject {
   List<Map<String, dynamic>> jsonListContents;
 
   JSONObject(String jsonString) {
+    // print('JSONObject: $jsonString');
+
     var respJSON = json.decode(jsonString);
 
     // print('JSONObject: ${respJSON.runtimeType}[${respJSON.length}]');
 
-    if (respJSON is List<dynamic>) {
+    if (respJSON is double || respJSON is int) {
+      this.jsonContents = {'price': respJSON.toDouble()};
+    } else if (respJSON is List<dynamic>) {
       jsonListContents = [];
       respJSON.forEach((map) {
         this.jsonListContents.add(map);

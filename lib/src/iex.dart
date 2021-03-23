@@ -27,6 +27,13 @@ class IEX extends BaseAPI {
     return jsonObject;
   }
 
+  Future<JSONObject> currentPrice({String symbol}) async {
+    JSONObject jsonObject =
+        await this.getRequest(function: 'price', symbol: symbol);
+    // print('ts currentPrice: ${jsonObject.jsonContents}');
+    return jsonObject;
+  }
+
   Future<JSONObject> intraDay({String symbol}) async {
     JSONObject jsonObject =
         await this.getRequest(function: 'intraday-prices', symbol: symbol);

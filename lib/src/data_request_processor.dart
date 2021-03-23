@@ -28,8 +28,7 @@ class DataRequestProcessor {
   DataRequestProcessor(String serviceEndPoint) {
     _init(serviceEndPoint);
     processing = false;
-    timer = Timer.periodic(
-        Duration(milliseconds: 500), (Timer t) => _processQueue());
+    timer = Timer.periodic(Duration(milliseconds: 500), (Timer t) => _processQueue());
   }
 
   _init(String serviceEndPoint) async {
@@ -93,6 +92,24 @@ class DataRequestProcessor {
     return chartData;
   }
 
+  Future<double> getCurrentPrice(String symbol) async {
+    double price;
+
+    await Future.doWhile(() async {
+      dataSets.forEach((key, value) {
+        if (key.startsWith(symbol + '[currentPrice]')) {
+          for (int i = 0; i < value.length; i++) {
+            if (value[i]['price'] != null) price = value[i]['price'].toDouble();
+          }
+        }
+      });
+      if (price == null) await Future.delayed(Duration(milliseconds: 100));
+      return price == null;
+    });
+
+    return price;
+  }
+
   /// * fOpen	: number	Fully adjusted for historical dates.
   /// * fClose	: number	Fully adjusted for historical dates.
   /// * fHigh	: number	Fully adjusted for historical dates.
@@ -142,8 +159,7 @@ class DataRequestProcessor {
         return;
       }
       if (indicator != null) {
-        dataSets.update(name, (value) => indicator.first,
-            ifAbsent: () => indicator.first);
+        dataSets.update(name, (value) => indicator.first, ifAbsent: () => indicator.first);
         return;
       }
     }
@@ -151,7 +167,7 @@ class DataRequestProcessor {
     if (jsonMap is List) {
       dataSets.update(name, (value) => jsonMap, ifAbsent: () => jsonMap);
     } else
-      print(jsonMap);
+      print('drp._updateDataSets: ' + jsonMap.toString());
   }
 
   /// Example usage:
@@ -209,6 +225,12 @@ class DataRequestProcessor {
       String tiPeriod = req['period'];
       String dataSetName;
 
+      if (req['fn'] == 'price') {
+        resp = await Function.apply(_currentPrice, null, params);
+        String json = '[{"symbol": "${req['symbol']}"},{"price": ${resp.jsonContents['price']}}]';
+        resp = JSONObject(json);
+        dataSetName = '${req['symbol']}[currentPrice]';
+      }
       if (req['fn'] == 'intra') {
         resp = await Function.apply(_intraDay, null, params);
         dataSetName = '${req['symbol']}[intraDay]';
@@ -226,6 +248,12 @@ class DataRequestProcessor {
       }
       if (resp != null) _updateDataSets(dataSetName, resp);
       request.remove(request.first);
+
+      //  Looks like io_client.dart in http package has a bug.
+      //  A delay is require to ensure io_client is not overwhelmed.
+      //  It helps but does not fix the issue.
+      //  Unhandled Exception: Connection closed before full header was received
+      await Future.delayed(Duration(milliseconds: 1000));
     }
     return true;
   }
@@ -233,6 +261,10 @@ class DataRequestProcessor {
   Future<String> getCoNameBySymbol(String symbol) async {
     String coName = await sm.getNameBySymbol(symbol);
     return coName;
+  }
+
+  Future<JSONObject> _currentPrice({String symbol}) async {
+    return await ts.currentPrice(symbol: symbol);
   }
 
   Future<JSONObject> _intraDay({String symbol}) async {
@@ -259,8 +291,7 @@ class DataRequestProcessor {
 
   ///  Technical Indicator: SMA,MACD,Stoch
   ///
-  Future<JSONObject> _techInd(
-      {String symbol, String ti, String range, String period}) async {
+  Future<JSONObject> _techInd({String symbol, String ti, String range, String period}) async {
     return await ts.ti(symbol: symbol, ti: ti, range: range, period: period);
   }
 }
