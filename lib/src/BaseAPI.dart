@@ -19,7 +19,7 @@ class BaseAPI {
     // print(this._apiKey);
     if (_apiKey == null) throw Exception('API key not set.');
 
-    client = IEXClient.internal(sandbox: key.endsWith('IEX_SB'));
+    client = IEXClient.internal(sandbox: key.startsWith('IEX_SB'));
     this.queryParams = new Map();
   }
 
@@ -58,7 +58,8 @@ class BaseAPI {
           indicatorOnly: indicatorOnly,
         );
 
-    // print('[BaseAPI] ${response.toString()}');
+    // if (types == 'trade') print('[BaseAPI] ${response.toString()}');
+
     if (_validateResponse(response)) return JSONObject(response);
     return JSONObject('{ERROR:"$response"}');
   }

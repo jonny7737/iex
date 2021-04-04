@@ -1,6 +1,6 @@
 name: iex
 description: IEXCloud API interface.
-version: 0.0.1
+version: 0.0.2
 homepage: 'https://github.com/jonny7737/iex'
 
 environment:
@@ -11,8 +11,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  http: ^0.13.1
   path_provider: ^2.0.1
+  intl: ^0.17.0
 
   objectdb: ^1.2.1
 

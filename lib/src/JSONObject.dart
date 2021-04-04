@@ -7,7 +7,13 @@ class JSONObject {
   JSONObject(String jsonString) {
     // print('JSONObject: $jsonString');
 
-    var respJSON = json.decode(jsonString);
+    var respJSON;
+    if (jsonString.startsWith('\{'))
+      respJSON = "{'ERROR':$jsonString}";
+    else if (jsonString.startsWith('<html>'))
+      respJSON = "{'ERROR':$jsonString}";
+    else
+      respJSON = json.decode(jsonString);
 
     // print('JSONObject: ${respJSON.runtimeType}[${respJSON.length}]');
 
@@ -18,6 +24,8 @@ class JSONObject {
       respJSON.forEach((map) {
         this.jsonListContents.add(map);
       });
+    } else if (respJSON is String) {
+      this.jsonContents = {'error': respJSON};
     } else
       this.jsonContents = respJSON;
   }

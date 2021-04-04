@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:iex/iex.dart';
 import 'package:objectdb/objectdb.dart';
 // ignore: implementation_imports
-import 'package:objectdb/src/objectdb_storage_filesystem.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:objectdb/src/objectdb_storage_in_memory.dart';
 
 class StockInfo {
   StockInfo(this.symbol, this.exchange, this.name, this.region, this.currency);
@@ -15,13 +12,14 @@ class StockInfo {
   final String currency;
 }
 
+ObjectDB db;
+
 class StockMeta {
   StockMeta(String serviceEndPoint) {
     _init(serviceEndPoint);
   }
 
   IEX ts;
-  ObjectDB db;
   bool initED = false;
 
   int numSymbols;
@@ -29,15 +27,15 @@ class StockMeta {
   _init(String serviceEndPoint) async {
     ts = IEX(serviceEndPoint);
 
-    // await Future.microtask(() async {
-    //   db = ObjectDB(InMemoryStorage());
-    // });
-
     await Future.microtask(() async {
-      Directory appDocDir = await getApplicationDocumentsDirectory();
-      String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
-      db = ObjectDB(FileSystemStorage(dbFilePath));
+      db = ObjectDB(InMemoryStorage());
     });
+
+    // await Future.microtask(() async {
+    //   Directory appDocDir = await getApplicationDocumentsDirectory();
+    //   String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
+    //   db = ObjectDB(FileSystemStorage(dbFilePath));
+    // });
 
     initED = true;
   }
@@ -64,15 +62,34 @@ class StockMeta {
     return;
   }
 
+  static Future<int> numRecordsInDB(_) async {
+    int s;
+
+    print('s(0): $s [${db.hashCode}]');
+
+    List sList = await db.find({});
+    s = sList.length;
+
+    print('s(1): $s');
+
+    return s;
+  }
+
   Future<int> get numberOfSymbols async {
     await dbIsOpen;
     if (numSymbols == null || numSymbols == 0) {
-      // DateTime start = DateTime.now();
-      int s = (await db.find({})).length;
-      // int duration = DateTime.now().difference(start).inMilliseconds;
-      // print('Time to # of symbols: $duration mS');
+      DateTime start = DateTime.now();
+
+      List sList = await db.find({});
+      int s = sList.length;
+
+      // print('About to compute()');
+      // int s = await compute(numRecordsInDB, null);
+      // print('s: $s');
+
+      int duration = DateTime.now().difference(start).inMilliseconds;
+      print('Time to count $s symbols: $duration mS');
       numSymbols = s;
-      // print('s = $s');
     }
     return numSymbols ?? 0;
   }
@@ -99,9 +116,8 @@ class StockMeta {
     int len = (await db?.find({}))?.length;
 
     if (checkExpired && len > 0)
-      updatedDaysAgo = DateTime.now()
-          .difference(DateTime.parse((await db.first({}))['date']))
-          .inDays;
+      updatedDaysAgo =
+          DateTime.now().difference(DateTime.parse((await db.first({}))['date'])).inDays;
 
     if (updatedDaysAgo >= 0 && updatedDaysAgo < 7) return;
 
@@ -109,5 +125,9 @@ class StockMeta {
 
     var jsonObject = await ts.getSymbolList();
     await db.insertMany(jsonObject.getJSONMap());
+  }
+
+  Future<JSONObject> nextMarketOpen() async {
+    return await ts.nextMarketOpen();
   }
 }

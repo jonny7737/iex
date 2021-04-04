@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:intl/intl.dart';
+
 class IEXClient {
   final String _sandboxURL = 'sandbox.iexapis.com';
   final String _baseURL = 'cloud.iexapis.com';
@@ -28,8 +30,11 @@ class IEXClient {
 
   // ignore: non_constant_identifier_names
   final _CLOSE_ONLY = 'chartCloseOnly';
+
   // ignore: non_constant_identifier_names
   final _INDICATOR_ONLY = 'indicatorOnly';
+
+  String get now => DateFormat("Hms").format(DateTime.now());
 
   /// Technical Indicators
   ///
@@ -73,7 +78,9 @@ class IEXClient {
     List<String> pathSegments;
     pathSegments = [
       _apiVersion,
-      (function != 'intraday-prices' && function != 'price') ? function : 'stock',
+      (function != 'intraday-prices' && function != 'price' && function != 'latestPrice')
+          ? function
+          : 'stock',
       symbol,
       indicator != null ? 'indicator' : null,
       indicator != null ? '$indicator' : null,
@@ -81,6 +88,12 @@ class IEXClient {
       (function == 'stock' && indicator == null) ? 'batch' : null,
       function == 'intraday-prices' ? function : null,
       function == 'price' ? function : null,
+      function == 'latestPrice' ? 'quote' : null,
+      function == 'latestPrice' ? function : null,
+      types == 'trade' ? 'dates' : null,
+      types == 'trade' ? 'trade' : null,
+      period == 'next' ? 'next' : null,
+      types == 'trade' ? range : null,
     ];
 
     pathSegments.removeWhere((element) => element == null);
@@ -91,15 +104,19 @@ class IEXClient {
         host: _useSandBox ? this._sandboxURL : this._baseURL,
         pathSegments: pathSegments,
         queryParameters: queryParams);
-    // print("Calling client with URL: " + uriRequest.toString());
 
-    // var request = await HttpClient().getUrl(uriRequest);
-    // // sends the request
-    // HttpClientResponse response = await request.close();
-    // print('Response status code: ${response.statusCode}');
+    // print("[$now] Calling client with URL: " + uriRequest.toString());
 
-    var response = await getUrlWithRetry(_client, uriRequest);
-    // print('Response string[${await response.length} bytes]');
+    HttpClientResponse response;
+
+    try {
+      response = await getUrlWithRetry(_client, uriRequest);
+    } catch (e) {
+      print('HTTP get failed...Retrying.');
+      response = await getUrlWithRetry(_client, uriRequest);
+    }
+
+    // print('Response string[${response.length} bytes]');
     String respStr = '';
     // transforms and prints the response
     await for (var contents in response.transform(Utf8Decoder())) {
@@ -107,25 +124,8 @@ class IEXClient {
       respStr += contents;
     }
 
-    // print('Response string: \n$respStr');
+    // if (types == 'trade') print('Response string: \n$respStr');
 
-    // Future<Response> response =
-    // Future<String> responseStr;
-    // this._client.getUrl(uriRequest).then((HttpClientRequest request) {
-    //   // Optionally set up headers...
-    //   // Optionally write to the request object...
-    //   // Then call close.
-    //   return request.close();
-    // }).then((HttpClientResponse response) async {
-    //   responseStr = readResponse(response);
-    // });
-
-    // response.then((Response response) {
-    //   // print("Response from server: " +
-    //   //     response.body.length.toString() +
-    //   //     ' bytes');
-    // });
-    // print('$resp');
     return respStr;
   }
 
@@ -158,6 +158,12 @@ class IEXClient {
       bool closeOnly,
       bool indicatorOnly}) {
     Map<String, String> queryParams = new Map();
+
+    if (types == 'trade' && period == 'next') {
+      _updateQueryMap(queryParams, this._APIKEY, apiKey);
+      return queryParams;
+    }
+
     _updateQueryMap(queryParams, this._SYMBOLS, symbols);
     _updateQueryMap(queryParams, this._RANGE, range);
     _updateQueryMap(queryParams, this._PERIOD, period);
@@ -168,12 +174,13 @@ class IEXClient {
     if (indicatorOnly != null && indicatorOnly)
       _updateQueryMap(queryParams, this._INDICATOR_ONLY, 'true');
     _updateQueryMap(queryParams, this._APIKEY, apiKey);
+
     return queryParams;
   }
 
-  _updateQueryMap(Map<String, String> currentHeaders, String param, String paramValue) {
+  _updateQueryMap(Map<String, String> currentParams, String param, String paramValue) {
     if (paramValue != null) {
-      currentHeaders[param] = paramValue;
+      currentParams[param] = paramValue;
     }
   }
 }

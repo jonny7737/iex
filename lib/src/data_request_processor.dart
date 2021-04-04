@@ -71,6 +71,13 @@ class DataRequestProcessor {
     minimumDate = chartData[0].date;
   }
 
+  Future<String> nextMarketOpen() async {
+    JSONObject jsonObject = await sm.nextMarketOpen();
+    // print('DRP  ${jsonObject.jsonListContents}');
+    if (jsonObject.jsonListContents == null) return null;
+    return jsonObject.jsonListContents[0]['date'].toString();
+  }
+
   List<ChartData> buildChartData(String symbol) {
     if (chartData.isNotEmpty) return chartData;
     chartData.clear();
@@ -230,30 +237,22 @@ class DataRequestProcessor {
         String json = '[{"symbol": "${req['symbol']}"},{"price": ${resp.jsonContents['price']}}]';
         resp = JSONObject(json);
         dataSetName = '${req['symbol']}[currentPrice]';
-      }
-      if (req['fn'] == 'intra') {
+      } else if (req['fn'] == 'intra') {
         resp = await Function.apply(_intraDay, null, params);
         dataSetName = '${req['symbol']}[intraDay]';
-      }
-      if (req['fn'] == 'ti') {
+      } else if (req['fn'] == 'ti') {
         resp = await Function.apply(_techInd, null, params);
         dataSetName = '${req['symbol']}[ti: $techIndicator $tiPeriod]';
-      }
-      if (req['fn'] == 'chart') {
+      } else if (req['fn'] == 'chart') {
         resp = await Function.apply(_stockBatch, null, params);
         dataSetName = '${req['symbol']}[${req['range']} chart]';
       }
+
       if (resp.get('ERROR') != null) {
         return false;
       }
       if (resp != null) _updateDataSets(dataSetName, resp);
       request.remove(request.first);
-
-      //  Looks like io_client.dart in http package has a bug.
-      //  A delay is require to ensure io_client is not overwhelmed.
-      //  It helps but does not fix the issue.
-      //  Unhandled Exception: Connection closed before full header was received
-      await Future.delayed(Duration(milliseconds: 1000));
     }
     return true;
   }
@@ -264,7 +263,14 @@ class DataRequestProcessor {
   }
 
   Future<JSONObject> _currentPrice({String symbol}) async {
-    return await ts.currentPrice(symbol: symbol);
+    // DateTime start = DateTime.now();
+
+    JSONObject j = await ts.currentPrice(symbol: symbol);
+
+    // int duration = DateTime.now().difference(start).inMilliseconds;
+    // print('Time to retrieve $symbol price: $duration mS');
+
+    return j;
   }
 
   Future<JSONObject> _intraDay({String symbol}) async {
