@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:iex/src/remote_logger.dart';
 import 'package:intl/intl.dart';
 
 class IEXClient {
@@ -43,6 +44,7 @@ class IEXClient {
   HttpClient _client = HttpClient();
 
   static final IEXClient _iexClient = IEXClient.internal();
+  RemoteLogger r = RemoteLogger();
 
   IEXClient.internal({bool sandbox: true}) {
     _useSandBox = sandbox;
@@ -105,7 +107,7 @@ class IEXClient {
         pathSegments: pathSegments,
         queryParameters: queryParams);
 
-    // print("[$now] Calling client with URL: " + uriRequest.toString());
+    r.log("Calling client with URL: " + uriRequest.toString(), StackTrace.current);
 
     HttpClientResponse response;
 
@@ -130,7 +132,7 @@ class IEXClient {
   }
 
   Future<HttpClientResponse> getUrlWithRetry(HttpClient httpClient, Uri url,
-      {int maxRetries = 5}) async {
+      {int maxRetries = 2}) async {
     for (var attempt = 0; attempt < maxRetries; attempt++) {
       final request = await httpClient.openUrl('GET', url);
       final response = await request.close();

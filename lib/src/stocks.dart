@@ -1,4 +1,5 @@
 import 'package:iex/iex.dart';
+import 'package:iex/src/remote_logger.dart';
 import 'package:objectdb/objectdb.dart';
 // ignore: implementation_imports
 import 'package:objectdb/src/objectdb_storage_in_memory.dart';
@@ -19,6 +20,7 @@ class StockMeta {
     _init(serviceEndPoint);
   }
 
+  RemoteLogger r = RemoteLogger();
   IEX ts;
   bool initED = false;
 
@@ -62,18 +64,18 @@ class StockMeta {
     return;
   }
 
-  static Future<int> numRecordsInDB(_) async {
-    int s;
-
-    print('s(0): $s [${db.hashCode}]');
-
-    List sList = await db.find({});
-    s = sList.length;
-
-    print('s(1): $s');
-
-    return s;
-  }
+  // static Future<int> numRecordsInDB(_) async {
+  //   int s;
+  //
+  //   // r.log('s(0): $s [${db.hashCode}]');
+  //
+  //   List sList = await db.find({});
+  //   s = sList.length;
+  //
+  //   // r.log('s(1): $s');
+  //
+  //   return s;
+  // }
 
   Future<int> get numberOfSymbols async {
     await dbIsOpen;
@@ -88,7 +90,7 @@ class StockMeta {
       // print('s: $s');
 
       int duration = DateTime.now().difference(start).inMilliseconds;
-      print('Time to count $s symbols: $duration mS');
+      r.log('Time to count $s symbols: $duration mS', StackTrace.current);
       numSymbols = s;
     }
     return numSymbols ?? 0;

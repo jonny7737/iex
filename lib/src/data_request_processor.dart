@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
 
+import 'package:iex/iex.dart';
 import 'package:iex/src/JSONObject.dart';
+import 'package:iex/src/remote_logger.dart';
 import 'package:iex/src/stocks.dart';
-
-import '../iex.dart';
 
 class ChartData {
   ChartData(this.date, this.open, this.high, this.low, this.close, this.volume);
@@ -32,12 +32,14 @@ class DataRequestProcessor {
   }
 
   _init(String serviceEndPoint) async {
+    r = RemoteLogger();
     ts = IEX(serviceEndPoint);
     sm = StockMeta(serviceEndPoint);
   }
 
   StockMeta sm;
   IEX ts;
+  RemoteLogger r;
 
   final ListQueue queue = ListQueue();
   Timer timer;
@@ -51,29 +53,28 @@ class DataRequestProcessor {
 
   void clearAll() => chartData.clear();
 
-  String get keys => dataSets.keys.toString();
+  // String get keys => dataSets.keys.toString();
 
-  void setMinMaxY() {
-    if (chartData.isEmpty) return;
-    minY = 10000000;
-    maxY = -10000000;
-
-    // zoomLevel = chartData.length - 90;
-    // if (zoomLevel < 0) zoomLevel = 0;
-
-    for (int i = 0; i < chartData.length; i++) {
-      if (minY > chartData[i].low) minY = chartData[i].low;
-      if (maxY < chartData[i].high) maxY = chartData[i].high;
-    }
-    minY = (minY * 0.98) - (minY * 0.98) % 5;
-    maxY = (maxY * 1.05) - (maxY * 1.05) % 5;
-
-    minimumDate = chartData[0].date;
-  }
+  // void setMinMaxY() {
+  //   if (chartData.isEmpty) return;
+  //   minY = 10000000;
+  //   maxY = -10000000;
+  //
+  //   // zoomLevel = chartData.length - 90;
+  //   // if (zoomLevel < 0) zoomLevel = 0;
+  //
+  //   for (int i = 0; i < chartData.length; i++) {
+  //     if (minY > chartData[i].low) minY = chartData[i].low;
+  //     if (maxY < chartData[i].high) maxY = chartData[i].high;
+  //   }
+  //   minY = (minY * 0.98) - (minY * 0.98) % 5;
+  //   maxY = (maxY * 1.05) - (maxY * 1.05) % 5;
+  //
+  //   minimumDate = chartData[0].date;
+  // }
 
   Future<String> nextMarketOpen() async {
     JSONObject jsonObject = await sm.nextMarketOpen();
-    // print('DRP  ${jsonObject.jsonListContents}');
     if (jsonObject.jsonListContents == null) return null;
     return jsonObject.jsonListContents[0]['date'].toString();
   }
@@ -211,7 +212,6 @@ class DataRequestProcessor {
       }
     }
     processing = false;
-    // notifyListeners();
   }
 
   Map<Symbol, dynamic> _paramsBuilder(Map<String, dynamic> requestParams) {
@@ -231,6 +231,8 @@ class DataRequestProcessor {
       String techIndicator = req['ti'];
       String tiPeriod = req['period'];
       String dataSetName;
+
+      // r.log('Processing : ${req.toString()}', StackTrace.current);
 
       if (req['fn'] == 'price') {
         resp = await Function.apply(_currentPrice, null, params);
@@ -297,7 +299,12 @@ class DataRequestProcessor {
 
   ///  Technical Indicator: SMA,MACD,Stoch
   ///
-  Future<JSONObject> _techInd({String symbol, String ti, String range, String period}) async {
+  Future<JSONObject> _techInd({
+    String symbol,
+    String ti,
+    String range,
+    String period,
+  }) async {
     return await ts.ti(symbol: symbol, ti: ti, range: range, period: period);
   }
 }
