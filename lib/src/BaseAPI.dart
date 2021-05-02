@@ -8,16 +8,16 @@ import 'package:iex/src/iex_client.dart';
 class BaseAPI {
   var client;
 
-  String _apiKey;
-  Map<String, String> queryParams;
+  late String _apiKey;
+  late Map<String, String> queryParams;
 
   BaseAPI(String key) {
     if (Platform.isMacOS)
-      this._apiKey = Platform.environment[key];
+      this._apiKey = Platform.environment[key] as String;
     else
       this._apiKey = key;
     // print(this._apiKey);
-    if (_apiKey == null) throw Exception('API key not set.');
+    // if (_apiKey == null) throw Exception('API key not set.');
 
     client = IEXClient.internal(sandbox: key.startsWith('IEX_SB'));
     this.queryParams = new Map();
@@ -30,17 +30,17 @@ class BaseAPI {
   }
 
   Future<JSONObject> getRequest({
-    String function,
-    String symbol,
-    String symbols,
-    String market,
-    String range,
-    String period,
-    String indicator,
-    String types,
-    String filter,
-    bool closeOnly,
-    bool indicatorOnly,
+    String? function,
+    String? symbol,
+    String? symbols,
+    String market = '',
+    String range = '',
+    String? period,
+    String indicator = '',
+    String? types,
+    String? filter,
+    bool closeOnly = false,
+    bool? indicatorOnly,
   }) async {
     String response;
     response = await this.client.get(

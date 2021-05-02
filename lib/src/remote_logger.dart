@@ -1,8 +1,13 @@
 import 'package:intl/intl.dart';
 
 class RemoteLogger {
-  static RemoteLogger _instance;
-  Function remoteLogger;
+  static RemoteLogger? _instance;
+  Function remoteLogger = dummy;
+
+  static dummy(String msg, [StackTrace? stackTrace]) {
+    String _now = DateFormat("Hms").format(DateTime.now());
+    print('[$_now] $msg');
+  }
 
   RemoteLogger._internal() {
     _instance = this;
@@ -10,12 +15,9 @@ class RemoteLogger {
 
   factory RemoteLogger() => _instance ?? RemoteLogger._internal();
 
-  String get _now => DateFormat("Hms").format(DateTime.now());
+  // String get _now => DateFormat("Hms").format(DateTime.now());
 
-  void log(String message, [StackTrace stackTrace]) {
-    if (remoteLogger != null)
-      remoteLogger(message, stackTrace);
-    else
-      print('[$_now] $message');
+  void log(String message, [StackTrace? stackTrace]) {
+    remoteLogger('[iex] ' + message, stackTrace);
   }
 }

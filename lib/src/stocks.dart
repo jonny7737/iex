@@ -13,7 +13,7 @@ class StockInfo {
   final String currency;
 }
 
-ObjectDB db;
+late ObjectDB db;
 
 class StockMeta {
   StockMeta(String serviceEndPoint) {
@@ -21,16 +21,17 @@ class StockMeta {
   }
 
   RemoteLogger r = RemoteLogger();
-  IEX ts;
+  late IEX ts;
   bool initED = false;
 
-  int numSymbols;
+  int numSymbols = 0;
 
   _init(String serviceEndPoint) async {
     ts = IEX(serviceEndPoint);
 
     await Future.microtask(() async {
       db = ObjectDB(InMemoryStorage());
+      initED = true;
     });
 
     // await Future.microtask(() async {
@@ -38,20 +39,18 @@ class StockMeta {
     //   String dbFilePath = [appDocDir.path, 'symbols.db'].join('/');
     //   db = ObjectDB(FileSystemStorage(dbFilePath));
     // });
-
-    initED = true;
   }
 
   Future<bool> get dbIsOpen async {
-    while (db == null) {
-      await Future.delayed(Duration(milliseconds: 100));
-    }
+    // while (db == null) {
+    //   await Future.delayed(Duration(milliseconds: 100));
+    // }
 
-    return true;
+    return initED;
   }
 
   Future clearDB() async {
-    await db?.remove({}); //  Remove all entries from the database.
+    await db.remove({}); //  Remove all entries from the database.
   }
 
   Future<void> _symbolDBReady() async {
@@ -79,35 +78,27 @@ class StockMeta {
 
   Future<int> get numberOfSymbols async {
     await dbIsOpen;
-    if (numSymbols == null || numSymbols == 0) {
+    if (numSymbols == 0) {
       DateTime start = DateTime.now();
 
       List sList = await db.find({});
       int s = sList.length;
 
-      // print('About to compute()');
-      // int s = await compute(numRecordsInDB, null);
-      // print('s: $s');
-
-      int duration = DateTime.now().difference(start).inMilliseconds;
-      r.log('Time to count $s symbols: $duration mS', StackTrace.current);
+      if (s != 0) {
+        int duration = DateTime.now().difference(start).inMilliseconds;
+        r.log('Time to count $s symbols: $duration mS', StackTrace.current);
+      }
       numSymbols = s;
     }
-    return numSymbols ?? 0;
+    return numSymbols;
   }
 
   Future<String> getNameBySymbol(String symbol) async {
-    // DateTime start = DateTime.now();
     await _symbolDBReady();
-    // int runTime = DateTime.now().difference(start).inMilliseconds;
-    // print('Time to symbol DB ready[includes time to #symbols: $runTime mS');
 
-    // start = DateTime.now();
     var coList = await db.find({'symbol': symbol.toUpperCase()});
-    // runTime = DateTime.now().difference(start).inMilliseconds;
-    // print('Time to find [$symbol]: $runTime mS');
 
-    if (coList.isEmpty) return null;
+    if (coList.isEmpty) return 'UnKnown';
     return coList[0]['name'];
   }
 
@@ -115,17 +106,24 @@ class StockMeta {
     await dbIsOpen;
 
     int updatedDaysAgo = -1;
-    int len = (await db?.find({}))?.length;
+    int len = (await db.find({})).length;
 
     if (checkExpired && len > 0)
-      updatedDaysAgo =
-          DateTime.now().difference(DateTime.parse((await db.first({}))['date'])).inDays;
+      updatedDaysAgo = DateTime.now()
+          .difference(DateTime.parse((await db.first({}))['date']))
+          .inDays;
 
     if (updatedDaysAgo >= 0 && updatedDaysAgo < 7) return;
 
     clearDB();
 
     var jsonObject = await ts.getSymbolList();
+
+    dynamic jsonMap = jsonObject.getJSONMap();
+    if (jsonMap is List) if (jsonMap[0]['error'] != null)
+      r.log(jsonMap.toString());
+    // else if (jsonMap['error'] != null) r.log(jsonMap.toString());
+
     await db.insertMany(jsonObject.getJSONMap());
   }
 

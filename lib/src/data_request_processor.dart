@@ -8,12 +8,12 @@ import 'package:iex/src/stocks.dart';
 
 class ChartData {
   ChartData(this.date, this.open, this.high, this.low, this.close, this.volume);
-  final DateTime date;
-  final double open;
-  final double high;
-  final double low;
-  final double close;
-  final double volume;
+  final DateTime? date;
+  final double? open;
+  final double? high;
+  final double? low;
+  final double? close;
+  final double? volume;
 }
 
 class DataRequestProcessor {
@@ -28,54 +28,34 @@ class DataRequestProcessor {
   DataRequestProcessor(String serviceEndPoint) {
     _init(serviceEndPoint);
     processing = false;
-    timer = Timer.periodic(Duration(milliseconds: 500), (Timer t) => _processQueue());
+    timer = Timer.periodic(
+        Duration(milliseconds: 500), (Timer t) => _processQueue());
   }
 
   _init(String serviceEndPoint) async {
-    r = RemoteLogger();
     ts = IEX(serviceEndPoint);
     sm = StockMeta(serviceEndPoint);
   }
 
-  StockMeta sm;
-  IEX ts;
-  RemoteLogger r;
+  late StockMeta sm;
+  late IEX ts;
+  RemoteLogger r = RemoteLogger();
 
   final ListQueue queue = ListQueue();
-  Timer timer;
-  bool processing;
+  late Timer timer;
+  bool processing = false;
 
   Map<String, dynamic> dataSets = {};
   List<ChartData> chartData = [];
-  double minY;
-  double maxY;
-  DateTime minimumDate;
+  late double minY;
+  late double maxY;
+  late DateTime minimumDate;
 
   void clearAll() => chartData.clear();
 
-  // String get keys => dataSets.keys.toString();
-
-  // void setMinMaxY() {
-  //   if (chartData.isEmpty) return;
-  //   minY = 10000000;
-  //   maxY = -10000000;
-  //
-  //   // zoomLevel = chartData.length - 90;
-  //   // if (zoomLevel < 0) zoomLevel = 0;
-  //
-  //   for (int i = 0; i < chartData.length; i++) {
-  //     if (minY > chartData[i].low) minY = chartData[i].low;
-  //     if (maxY < chartData[i].high) maxY = chartData[i].high;
-  //   }
-  //   minY = (minY * 0.98) - (minY * 0.98) % 5;
-  //   maxY = (maxY * 1.05) - (maxY * 1.05) % 5;
-  //
-  //   minimumDate = chartData[0].date;
-  // }
-
   Future<String> nextMarketOpen() async {
     JSONObject jsonObject = await sm.nextMarketOpen();
-    if (jsonObject.jsonListContents == null) return null;
+    // if (jsonObject.jsonListContents == null) return null;
     return jsonObject.jsonListContents[0]['date'].toString();
   }
 
@@ -95,13 +75,13 @@ class DataRequestProcessor {
         ));
       });
     if (chartData.isNotEmpty) {
-      minimumDate = chartData[0].date;
+      minimumDate = chartData[0].date!;
     }
     return chartData;
   }
 
-  Future<double> getCurrentPrice(String symbol) async {
-    double price;
+  Future<double?> getCurrentPrice(String symbol) async {
+    double? price;
 
     await Future.doWhile(() async {
       dataSets.forEach((key, value) {
@@ -111,7 +91,7 @@ class DataRequestProcessor {
           }
         }
       });
-      if (price == null) await Future.delayed(Duration(milliseconds: 100));
+      if (price == null) await Future.delayed(Duration(milliseconds: 50));
       return price == null;
     });
 
@@ -160,14 +140,15 @@ class DataRequestProcessor {
     var jsonMap = jsonObject.getJSONMap();
 
     if (jsonMap is Map<String, dynamic>) {
-      List<dynamic> chart = jsonMap['chart'];
-      List<dynamic> indicator = jsonMap['indicator'];
+      List<dynamic>? chart = jsonMap['chart'];
+      List<dynamic>? indicator = jsonMap['indicator'];
       if (chart != null) {
         dataSets.update(name, (value) => chart, ifAbsent: () => chart);
         return;
       }
       if (indicator != null) {
-        dataSets.update(name, (value) => indicator.first, ifAbsent: () => indicator.first);
+        dataSets.update(name, (value) => indicator.first,
+            ifAbsent: () => indicator.first);
         return;
       }
     }
@@ -193,9 +174,12 @@ class DataRequestProcessor {
   ///    ]);
   ///```
   ///-
-  void requestData(List<Map<String, dynamic>> request, [Function callback]) {
+  void requestData(List<Map<String, dynamic>> request, [Function? callback]) {
+    if (queue.contains(request)) return;
     queue.add(request);
     queue.add(callback);
+    // r.log('New request queued: ${request.toString()}', StackTrace.current);
+    // print(StackTrace.current.toString());
   }
 
   void _processQueue() async {
@@ -207,7 +191,7 @@ class DataRequestProcessor {
       //  Process IEX API calls one at a time.
       if (await _processRequest(queue.first)) {
         queue.removeFirst();
-        Function callBack = queue.removeFirst();
+        Function? callBack = queue.removeFirst();
         if (callBack != null) callBack();
       }
     }
@@ -223,20 +207,21 @@ class DataRequestProcessor {
   }
 
   Future<bool> _processRequest(List<Map<String, dynamic>> request) async {
-    JSONObject resp;
+    JSONObject? resp;
 
     while (request.length > 0) {
       Map<Symbol, dynamic> params = _paramsBuilder(request.first);
       Map<String, dynamic> req = request.first;
-      String techIndicator = req['ti'];
-      String tiPeriod = req['period'];
-      String dataSetName;
+      String techIndicator = req['ti'] ?? '';
+      String tiPeriod = req['period'] ?? '';
+      String dataSetName = 'unknown';
 
       // r.log('Processing : ${req.toString()}', StackTrace.current);
 
       if (req['fn'] == 'price') {
         resp = await Function.apply(_currentPrice, null, params);
-        String json = '[{"symbol": "${req['symbol']}"},{"price": ${resp.jsonContents['price']}}]';
+        String json =
+            '[{"symbol": "${req['symbol']}"},{"price": ${resp!.jsonContents['price']}}]';
         resp = JSONObject(json);
         dataSetName = '${req['symbol']}[currentPrice]';
       } else if (req['fn'] == 'intra') {
@@ -250,10 +235,10 @@ class DataRequestProcessor {
         dataSetName = '${req['symbol']}[${req['range']} chart]';
       }
 
-      if (resp.get('ERROR') != null) {
+      if (resp!.get('ERROR') != null) {
         return false;
       }
-      if (resp != null) _updateDataSets(dataSetName, resp);
+      _updateDataSets(dataSetName, resp);
       request.remove(request.first);
     }
     return true;
@@ -264,7 +249,7 @@ class DataRequestProcessor {
     return coName;
   }
 
-  Future<JSONObject> _currentPrice({String symbol}) async {
+  Future<JSONObject> _currentPrice({required String symbol}) async {
     // DateTime start = DateTime.now();
 
     JSONObject j = await ts.currentPrice(symbol: symbol);
@@ -275,17 +260,66 @@ class DataRequestProcessor {
     return j;
   }
 
-  Future<JSONObject> _intraDay({String symbol}) async {
+  Future<double> currentPrice({required String symbol}) async {
+    JSONObject j = await ts.currentPrice(symbol: symbol);
+    return j.getJSONMap()['price'];
+  }
+
+  Future<JSONObject> _intraDay({required String symbol}) async {
     return await ts.intraDay(symbol: symbol);
   }
 
+  Future<List<ChartData>> intraDay(String symbol) async {
+    Map<DateTime, Map<String, double>> c = Map();
+    List<ChartData> chartData = [];
+
+    JSONObject resp = await ts.intraDay(symbol: symbol);
+    var jsonMap = resp.getJSONMap();
+
+    if (jsonMap is List) {
+      jsonMap.forEach((e) {
+        DateTime date;
+        if (e['minute'] != null) {
+          date = DateTime.parse(e['date'] + ' ${e["minute"]}');
+        } else
+          date = DateTime.parse(e['date']);
+        double open = e['fOpen']?.toDouble() ?? e['open']?.toDouble();
+        double high = e['fHigh']?.toDouble() ?? e['high']?.toDouble();
+        double low = e['fLow']?.toDouble() ?? e['low']?.toDouble();
+        double close = e['fClose']?.toDouble() ?? e['close']?.toDouble();
+        double volume = e['fVolume']?.toDouble() ?? e['volume']?.toDouble();
+        Map<String, double> _c = {
+          'open': open,
+          'high': high,
+          'low': low,
+          'close': close,
+          'volume': volume,
+        };
+        c.addAll({date: _c});
+      });
+    } else
+      return chartData;
+
+    c.forEach((key, value) {
+      chartData.add(ChartData(
+        key,
+        value['open'],
+        value['high'],
+        value['low'],
+        value['close'],
+        value['volume'],
+      ));
+    });
+    return chartData;
+  }
+
   Future<JSONObject> _stockBatch({
-    String symbol,
-    String range,
-    String types,
+    required String symbol,
+    required String range,
+    required String types,
     bool closeOnly = false,
   }) async {
-    String symbols;
+    String? symbols;
 
     JSONObject jsonObject = await ts.stockBatch(
       symbol: symbol,
@@ -300,10 +334,10 @@ class DataRequestProcessor {
   ///  Technical Indicator: SMA,MACD,Stoch
   ///
   Future<JSONObject> _techInd({
-    String symbol,
-    String ti,
-    String range,
-    String period,
+    required String symbol,
+    required String ti,
+    required String range,
+    required String period,
   }) async {
     return await ts.ti(symbol: symbol, ti: ti, range: range, period: period);
   }

@@ -11,7 +11,7 @@ class IEXClient {
   final String _apiVersion = 'stable';
 
   bool _useSandBox = true;
-  String url;
+  String url = '';
 
   // ignore: non_constant_identifier_names
   final _SYMBOLS = "symbols";
@@ -56,17 +56,17 @@ class IEXClient {
 
   Future<String> get(
       {String function = "time-series",
-      String symbol,
-      String symbols,
-      String apiKey,
-      String market,
-      String indicator,
-      String range,
-      String period,
-      String types,
-      String filter,
-      bool closeOnly,
-      bool indicatorOnly}) async {
+      String symbol = '',
+      String? symbols,
+      String? apiKey,
+      String market = '',
+      String indicator = '',
+      String range = '',
+      String? period,
+      String? types,
+      String? filter,
+      bool closeOnly = false,
+      bool? indicatorOnly}) async {
     Map<String, String> queryParams = _buildQueryParams(
         symbols: symbols,
         apiKey: apiKey,
@@ -77,28 +77,29 @@ class IEXClient {
         closeOnly: closeOnly,
         indicatorOnly: indicatorOnly);
 
-    List<String> pathSegments;
-    pathSegments = [
+    List<String>? pathSegments = [
       _apiVersion,
-      (function != 'intraday-prices' && function != 'price' && function != 'latestPrice')
+      (function != 'intraday-prices' &&
+              function != 'price' &&
+              function != 'latestPrice')
           ? function
           : 'stock',
-      symbol,
-      indicator != null ? 'indicator' : null,
-      indicator != null ? '$indicator' : null,
-      market,
-      (function == 'stock' && indicator == null) ? 'batch' : null,
-      function == 'intraday-prices' ? function : null,
-      function == 'price' ? function : null,
-      function == 'latestPrice' ? 'quote' : null,
-      function == 'latestPrice' ? function : null,
-      types == 'trade' ? 'dates' : null,
-      types == 'trade' ? 'trade' : null,
-      period == 'next' ? 'next' : null,
-      types == 'trade' ? range : null,
+      if (symbol != '') symbol,
+      if (indicator != '') 'indicator',
+      if (indicator != '') '$indicator',
+      if (market != '') market,
+      if (function == 'stock' && indicator == '') 'batch',
+      if (function == 'intraday-prices') function,
+      if (function == 'price') function,
+      if (function == 'latestPrice') 'quote',
+      if (function == 'latestPrice') function,
+      if (types == 'trade') 'dates',
+      if (types == 'trade') 'trade',
+      if (period == 'next') 'next',
+      if (types == 'trade') range,
     ];
 
-    pathSegments.removeWhere((element) => element == null);
+    // pathSegments.removeWhere((element) => element == null);
 
     Uri uriRequest;
     uriRequest = Uri(
@@ -107,15 +108,21 @@ class IEXClient {
         pathSegments: pathSegments,
         queryParameters: queryParams);
 
-    r.log("Calling client with URL: " + uriRequest.toString(), StackTrace.current);
+    r.log("<http> Calling client with URL: " + uriRequest.toString(),
+        StackTrace.current);
 
     HttpClientResponse response;
 
     try {
       response = await getUrlWithRetry(_client, uriRequest);
     } catch (e) {
-      print('HTTP get failed...Retrying.');
-      response = await getUrlWithRetry(_client, uriRequest);
+      r.log('<http> HTTP get failed...Retrying.');
+      try {
+        response = await getUrlWithRetry(_client, uriRequest);
+      } catch (e) {
+        r.log('<exception> Exception: ${e.toString()}');
+        return '{"error": "${e.toString()}"}';
+      }
     }
 
     // print('Response string[${response.length} bytes]');
@@ -133,12 +140,13 @@ class IEXClient {
 
   Future<HttpClientResponse> getUrlWithRetry(HttpClient httpClient, Uri url,
       {int maxRetries = 2}) async {
-    for (var attempt = 0; attempt < maxRetries; attempt++) {
-      final request = await httpClient.openUrl('GET', url);
-      final response = await request.close();
-      return response;
-    }
-    return null;
+    HttpClientResponse response;
+    // for (var attempt = 0; attempt < maxRetries; attempt++) {
+    final request = await httpClient.openUrl('GET', url);
+    response = await request.close();
+    return response;
+    // }
+    // return response;
   }
 
   Future<String> readResponse(HttpClientResponse response) {
@@ -151,14 +159,14 @@ class IEXClient {
   }
 
   Map<String, String> _buildQueryParams(
-      {String symbols,
-      String apiKey,
-      String range,
-      String period,
-      String types,
-      String filter,
-      bool closeOnly,
-      bool indicatorOnly}) {
+      {String? symbols,
+      String? apiKey,
+      String range = '',
+      String? period,
+      String? types,
+      String? filter,
+      bool closeOnly = false,
+      bool? indicatorOnly}) {
     Map<String, String> queryParams = new Map();
 
     if (types == 'trade' && period == 'next') {
@@ -171,7 +179,7 @@ class IEXClient {
     _updateQueryMap(queryParams, this._PERIOD, period);
     _updateQueryMap(queryParams, this._TYPES, types);
     _updateQueryMap(queryParams, this._FILTER, filter);
-    if (types != null) if (types.contains('chart') && closeOnly ?? false)
+    if (types != null) if (types.contains('chart') && closeOnly)
       _updateQueryMap(queryParams, this._CLOSE_ONLY, 'true');
     if (indicatorOnly != null && indicatorOnly)
       _updateQueryMap(queryParams, this._INDICATOR_ONLY, 'true');
@@ -180,8 +188,9 @@ class IEXClient {
     return queryParams;
   }
 
-  _updateQueryMap(Map<String, String> currentParams, String param, String paramValue) {
-    if (paramValue != null) {
+  _updateQueryMap(
+      Map<String, String> currentParams, String param, String? paramValue) {
+    if (paramValue != null && paramValue != '') {
       currentParams[param] = paramValue;
     }
   }
