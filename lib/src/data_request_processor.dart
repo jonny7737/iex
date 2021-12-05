@@ -292,9 +292,12 @@ class DataRequestProcessor {
       jsonMap.forEach((e) {
         tz.TZDateTime date;
         if (e['minute'] != null) {
-          date = tz.TZDateTime.parse(central, e['date'] + ' ${e["minute"]}');
+          date = tz.TZDateTime.parse(central, e['date'] + ' ${e["minute"]}')
+              .subtract(const Duration(hours: 1));
         } else
           date = tz.TZDateTime.parse(central, e['date']);
+
+        date = tz.TZDateTime.from(date, eastern);
 
         double? open = e['marketOpen']?.toDouble() ?? e['open']?.toDouble();
         double? high = e['marketHigh']?.toDouble() ?? e['high']?.toDouble();
