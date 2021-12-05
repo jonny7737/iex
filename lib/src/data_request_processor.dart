@@ -309,24 +309,6 @@ class DataRequestProcessor {
           'volume': volume ?? -double.infinity,
         };
 
-        // double open = (e['fOpen']?.toDouble() ?? e['open']?.toDouble()) ??
-        //     -double.infinity;
-        // double high = (e['fHigh']?.toDouble() ?? e['high']?.toDouble()) ??
-        //     -double.infinity;
-        // double low =
-        //     (e['fLow']?.toDouble() ?? e['low']?.toDouble()) ?? -double.infinity;
-        // double close = (e['fClose']?.toDouble() ?? e['close']?.toDouble()) ??
-        //     -double.infinity;
-        // double volume = (e['fVolume']?.toDouble() ?? e['volume']?.toDouble()) ??
-        //     -double.infinity;
-
-        // Map<String, double> _c = {
-        //   'open': open,
-        //   'high': high,
-        //   'low': low,
-        //   'close': close,
-        //   'volume': volume,
-        // };
         c.addAll({date: _c});
       });
     } else //  return an empty list if the response was not a list
