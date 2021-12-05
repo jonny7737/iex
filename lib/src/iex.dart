@@ -51,30 +51,31 @@ class IEX extends BaseAPI {
   Future<JSONObject> latestPrice({required String symbol}) async {
     JSONObject jsonObject =
         await this.getRequest(function: 'latestPrice', symbol: symbol);
-    // print('ts currentPrice: ${jsonObject.jsonContents}');
+    return jsonObject;
+  }
+
+  Future<JSONObject> previousClose({required String symbol}) async {
+    JSONObject jsonObject =
+        await this.getRequest(function: 'previousClose', symbol: symbol);
     return jsonObject;
   }
 
   Future<JSONObject> intraDay({required String symbol}) async {
     JSONObject jsonObject =
         await this.getRequest(function: 'intraday-prices', symbol: symbol);
-    // print('ts intraDay: ${jsonObject.jsonContents}');
     return jsonObject;
   }
 
   Future<JSONObject> stockBatch(
-      {String? symbol,
-      String? symbols,
+      {String symbol = '',
+      String symbols = '',
       String types = 'chart',
       String range = '', // date, 5d, 1m, 3m, 6m, ytd, 1y, 2y, 5y
-      String? filter,
+      String filter = '',
       bool chartCloseOnly = true}) async {
-    // if (this.getAPIKey() == null)
-    //   return JSONObject('{"ERROR": "API key not set."}');
-
     JSONObject jsonObject = await this.getRequest(
         function: 'stock',
-        symbol: symbol != null ? symbol : 'market',
+        symbol: symbol != '' ? symbol : 'market',
         symbols: symbols,
         types: types,
         filter: filter,
@@ -85,10 +86,10 @@ class IEX extends BaseAPI {
   }
 
   Future<JSONObject> ti(
-      {String? symbol,
+      {String symbol = '',
       String ti = '',
       String range = '',
-      String? period}) async {
+      String period = ''}) async {
     // if (this.getAPIKey() == null)
     //   return JSONObject('{"ERROR": "API key not set."}');
     JSONObject jsonObject = await this.getRequest(

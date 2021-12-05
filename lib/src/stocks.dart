@@ -102,6 +102,21 @@ class StockMeta {
     return coList[0]['name'];
   }
 
+  Future<List<Map<String, String>>> listOfMatches(String searchString) async {
+    List<Map<String, String>> result = [];
+    var regex = RegExp(RegExp.escape(searchString), caseSensitive: false);
+
+    var queryResult = await db.find({
+      Op.or: {'symbol': regex, 'name': regex}
+    });
+
+    queryResult.forEach((r) {
+      result.add({r['symbol']: r['name']});
+    });
+
+    return result;
+  }
+
   Future<void> _getSymbolList(bool checkExpired) async {
     await dbIsOpen;
 
@@ -124,7 +139,7 @@ class StockMeta {
       r.log(jsonMap.toString());
     // else if (jsonMap['error'] != null) r.log(jsonMap.toString());
 
-    await db.insertMany(jsonObject.getJSONMap());
+    await db.insertMany(jsonMap);
   }
 
   Future<JSONObject> nextMarketOpen() async {

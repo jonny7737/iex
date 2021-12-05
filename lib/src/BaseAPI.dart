@@ -6,7 +6,7 @@ import 'package:iex/src/JSONObject.dart';
 import 'package:iex/src/iex_client.dart';
 
 class BaseAPI {
-  var client;
+  late IEXClient client;
 
   late String _apiKey;
   late Map<String, String> queryParams;
@@ -30,17 +30,17 @@ class BaseAPI {
   }
 
   Future<JSONObject> getRequest({
-    String? function,
-    String? symbol,
-    String? symbols,
+    String function = '',
+    String symbol = '',
+    String symbols = '',
     String market = '',
     String range = '',
-    String? period,
+    String period = '',
     String indicator = '',
-    String? types,
-    String? filter,
+    String types = '',
+    String filter = '',
     bool closeOnly = false,
-    bool? indicatorOnly,
+    bool indicatorOnly = false,
   }) async {
     String response;
     response = await this.client.get(

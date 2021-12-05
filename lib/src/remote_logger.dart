@@ -1,12 +1,10 @@
-import 'package:intl/intl.dart';
-
 class RemoteLogger {
   static RemoteLogger? _instance;
   Function remoteLogger = dummy;
 
   static dummy(String msg, [StackTrace? stackTrace]) {
-    String _now = DateFormat("Hms").format(DateTime.now());
-    print('[$_now] $msg');
+    // String _now = DateFormat("Hms").format(DateTime.now());
+    // print('[$_now] $msg');
   }
 
   RemoteLogger._internal() {

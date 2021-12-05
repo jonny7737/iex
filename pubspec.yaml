@@ -4,7 +4,7 @@ version: 0.0.3
 homepage: 'https://github.com/jonny7737/iex'
 
 environment:
-  sdk: ">=2.12.0 <3.0.0"
+  sdk: ">=2.13.0 <3.0.0"
   flutter: ">=2.0.0"
 
 analyzer:
@@ -15,10 +15,11 @@ dependencies:
   flutter:
     sdk: flutter
 
-  path_provider: ^2.0.1
+  path_provider: ^2.0.5
   intl: ^0.17.0
+  timezone: ^0.8.0
 
-  objectdb: ^1.2.1
+  objectdb: ^1.2.1+1
 
 dev_dependencies:
   flutter_test:

@@ -5,10 +5,11 @@ import 'package:iex/iex.dart';
 import 'package:iex/src/JSONObject.dart';
 import 'package:iex/src/remote_logger.dart';
 import 'package:iex/src/stocks.dart';
+import 'package:timezone/timezone.dart' as tz;
 
 class ChartData {
   ChartData(this.date, this.open, this.high, this.low, this.close, this.volume);
-  final DateTime? date;
+  final tz.TZDateTime? date;
   final double? open;
   final double? high;
   final double? low;
@@ -28,8 +29,7 @@ class DataRequestProcessor {
   DataRequestProcessor(String serviceEndPoint) {
     _init(serviceEndPoint);
     processing = false;
-    timer = Timer.periodic(
-        Duration(milliseconds: 500), (Timer t) => _processQueue());
+    timer = Timer.periodic(Duration(milliseconds: 500), (Timer t) => _processQueue());
   }
 
   _init(String serviceEndPoint) async {
@@ -37,6 +37,8 @@ class DataRequestProcessor {
     sm = StockMeta(serviceEndPoint);
   }
 
+  final tz.Location eastern = tz.getLocation('US/Eastern');
+  final tz.Location central = tz.getLocation('US/Central');
   late StockMeta sm;
   late IEX ts;
   RemoteLogger r = RemoteLogger();
@@ -67,11 +69,11 @@ class DataRequestProcessor {
       ..forEach((key, value) {
         chartData.add(ChartData(
           key,
-          value['open'],
-          value['high'],
-          value['low'],
-          value['close'],
-          value['volume'],
+          value['open'] != -double.infinity ? value['open'] : null,
+          value['high'] != -double.infinity ? value['high'] : null,
+          value['low'] != -double.infinity ? value['low'] : null,
+          value['close'] != -double.infinity ? value['close'] : null,
+          value['volume'] != -double.infinity ? value['volume'] : null,
         ));
       });
     if (chartData.isNotEmpty) {
@@ -80,7 +82,7 @@ class DataRequestProcessor {
     return chartData;
   }
 
-  Future<double?> getCurrentPrice(String symbol) async {
+  Future<double> getCurrentPrice(String symbol) async {
     double? price;
 
     await Future.doWhile(() async {
@@ -95,7 +97,7 @@ class DataRequestProcessor {
       return price == null;
     });
 
-    return price;
+    return price ?? double.nan;
   }
 
   /// * fOpen	: number	Fully adjusted for historical dates.
@@ -104,30 +106,30 @@ class DataRequestProcessor {
   /// * fLow	: number	Fully adjusted for historical dates.
   /// * fVolume	: number	Fully adjusted for historical dates.
   ///
-  Map<DateTime, Map<String, double>> _getChartData(String symbol) {
-    Map<DateTime, Map<String, double>> c = {};
+  Map<tz.TZDateTime, Map<String, double>> _getChartData(String symbol) {
+    Map<tz.TZDateTime, Map<String, double>> c = {};
 
     dataSets.forEach((key, value) {
       if (!key.startsWith(symbol)) return;
       String dataSetType = key.split(RegExp(r'[\[\]]'))[1];
       if (dataSetType.contains('chart') || dataSetType.contains('intraDay')) {
         value.forEach((e) {
-          DateTime date;
+          tz.TZDateTime date;
           if (e['minute'] != null) {
-            date = DateTime.parse(e['date'] + ' ${e["minute"]}');
+            date = tz.TZDateTime.parse(eastern, e['date'] + ' ${e["minute"]}');
           } else
-            date = DateTime.parse(e['date']);
-          double open = e['fOpen']?.toDouble() ?? e['open']?.toDouble();
-          double high = e['fHigh']?.toDouble() ?? e['high']?.toDouble();
-          double low = e['fLow']?.toDouble() ?? e['low']?.toDouble();
-          double close = e['fClose']?.toDouble() ?? e['close']?.toDouble();
-          double volume = e['fVolume']?.toDouble() ?? e['volume']?.toDouble();
+            date = tz.TZDateTime.parse(eastern, e['date']);
+          double? open = e['fOpen']?.toDouble() ?? e['open']?.toDouble();
+          double? high = e['fHigh']?.toDouble() ?? e['high']?.toDouble();
+          double? low = e['fLow']?.toDouble() ?? e['low']?.toDouble();
+          double? close = e['fClose']?.toDouble() ?? e['close']?.toDouble();
+          double? volume = e['fVolume']?.toDouble() ?? e['volume']?.toDouble();
           Map<String, double> _c = {
-            'open': open,
-            'high': high,
-            'low': low,
-            'close': close,
-            'volume': volume,
+            'open': open ?? -double.infinity,
+            'high': high ?? -double.infinity,
+            'low': low ?? -double.infinity,
+            'close': close ?? -double.infinity,
+            'volume': volume ?? -double.infinity,
           };
           c.addAll({date: _c});
         });
@@ -147,16 +149,17 @@ class DataRequestProcessor {
         return;
       }
       if (indicator != null) {
-        dataSets.update(name, (value) => indicator.first,
-            ifAbsent: () => indicator.first);
+        dataSets.update(name, (value) => indicator.first, ifAbsent: () => indicator.first);
         return;
       }
     }
 
     if (jsonMap is List) {
       dataSets.update(name, (value) => jsonMap, ifAbsent: () => jsonMap);
-    } else
-      print('drp._updateDataSets: ' + jsonMap.toString());
+    } else {
+      print('drp._updateDataSets[162]: ' + jsonMap.runtimeType.toString());
+      print('drp._updateDataSets[163]: ${jsonMap.toString()}');
+    }
   }
 
   /// Example usage:
@@ -220,8 +223,7 @@ class DataRequestProcessor {
 
       if (req['fn'] == 'price') {
         resp = await Function.apply(_currentPrice, null, params);
-        String json =
-            '[{"symbol": "${req['symbol']}"},{"price": ${resp!.jsonContents['price']}}]';
+        String json = '[{"symbol": "${req['symbol']}"},{"price": ${resp!.jsonContents['price']}}]';
         resp = JSONObject(json);
         dataSetName = '${req['symbol']}[currentPrice]';
       } else if (req['fn'] == 'intra') {
@@ -249,6 +251,11 @@ class DataRequestProcessor {
     return coName;
   }
 
+  Future<List<Map<String, String>>> symbolListMatches(String searchString) async {
+    List<Map<String, String>> matchList = await sm.listOfMatches(searchString);
+    return matchList;
+  }
+
   Future<JSONObject> _currentPrice({required String symbol}) async {
     // DateTime start = DateTime.now();
 
@@ -262,7 +269,12 @@ class DataRequestProcessor {
 
   Future<double> currentPrice({required String symbol}) async {
     JSONObject j = await ts.currentPrice(symbol: symbol);
-    return j.getJSONMap()['price'];
+    return j.getJSONMap()['price'] ?? -double.infinity;
+  }
+
+  Future<double> previousClose({required String symbol}) async {
+    JSONObject j = await ts.previousClose(symbol: symbol);
+    return j.getJSONMap()['price'] ?? -double.infinity;
   }
 
   Future<JSONObject> _intraDay({required String symbol}) async {
@@ -270,7 +282,7 @@ class DataRequestProcessor {
   }
 
   Future<List<ChartData>> intraDay(String symbol) async {
-    Map<DateTime, Map<String, double>> c = Map();
+    Map<tz.TZDateTime, Map<String, double>> c = {};
     List<ChartData> chartData = [];
 
     JSONObject resp = await ts.intraDay(symbol: symbol);
@@ -278,26 +290,46 @@ class DataRequestProcessor {
 
     if (jsonMap is List) {
       jsonMap.forEach((e) {
-        DateTime date;
+        tz.TZDateTime date;
         if (e['minute'] != null) {
-          date = DateTime.parse(e['date'] + ' ${e["minute"]}');
+          date = tz.TZDateTime.parse(central, e['date'] + ' ${e["minute"]}');
         } else
-          date = DateTime.parse(e['date']);
-        double open = e['fOpen']?.toDouble() ?? e['open']?.toDouble();
-        double high = e['fHigh']?.toDouble() ?? e['high']?.toDouble();
-        double low = e['fLow']?.toDouble() ?? e['low']?.toDouble();
-        double close = e['fClose']?.toDouble() ?? e['close']?.toDouble();
-        double volume = e['fVolume']?.toDouble() ?? e['volume']?.toDouble();
+          date = tz.TZDateTime.parse(central, e['date']);
+
+        double? open = e['marketOpen']?.toDouble() ?? e['open']?.toDouble();
+        double? high = e['marketHigh']?.toDouble() ?? e['high']?.toDouble();
+        double? low = e['marketLow']?.toDouble() ?? e['low']?.toDouble();
+        double? close = e['marketClose']?.toDouble() ?? e['close']?.toDouble();
+        double? volume = e['marketVolume']?.toDouble() ?? e['volume']?.toDouble();
         Map<String, double> _c = {
-          'open': open,
-          'high': high,
-          'low': low,
-          'close': close,
-          'volume': volume,
+          'open': open ?? -double.infinity,
+          'high': high ?? -double.infinity,
+          'low': low ?? -double.infinity,
+          'close': close ?? -double.infinity,
+          'volume': volume ?? -double.infinity,
         };
+
+        // double open = (e['fOpen']?.toDouble() ?? e['open']?.toDouble()) ??
+        //     -double.infinity;
+        // double high = (e['fHigh']?.toDouble() ?? e['high']?.toDouble()) ??
+        //     -double.infinity;
+        // double low =
+        //     (e['fLow']?.toDouble() ?? e['low']?.toDouble()) ?? -double.infinity;
+        // double close = (e['fClose']?.toDouble() ?? e['close']?.toDouble()) ??
+        //     -double.infinity;
+        // double volume = (e['fVolume']?.toDouble() ?? e['volume']?.toDouble()) ??
+        //     -double.infinity;
+
+        // Map<String, double> _c = {
+        //   'open': open,
+        //   'high': high,
+        //   'low': low,
+        //   'close': close,
+        //   'volume': volume,
+        // };
         c.addAll({date: _c});
       });
-    } else
+    } else //  return an empty list if the response was not a list
       return chartData;
 
     c.forEach((key, value) {
@@ -310,6 +342,8 @@ class DataRequestProcessor {
         value['volume'],
       ));
     });
+
+    // print('iex = $symbol : ${chartData.last.date}');
     return chartData;
   }
 
@@ -319,7 +353,7 @@ class DataRequestProcessor {
     required String types,
     bool closeOnly = false,
   }) async {
-    String? symbols;
+    String symbols = '';
 
     JSONObject jsonObject = await ts.stockBatch(
       symbol: symbol,

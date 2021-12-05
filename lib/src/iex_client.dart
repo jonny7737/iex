@@ -77,13 +77,13 @@ class IEXClient {
         closeOnly: closeOnly,
         indicatorOnly: indicatorOnly);
 
+    bool quoteRequest = (function == 'latestPrice' || function == 'previousClose');
+
+    bool stockFunction = (function == 'intraday-prices' || function == 'price' || quoteRequest);
+
     List<String>? pathSegments = [
       _apiVersion,
-      (function != 'intraday-prices' &&
-              function != 'price' &&
-              function != 'latestPrice')
-          ? function
-          : 'stock',
+      stockFunction ? 'stock' : function,
       if (symbol != '') symbol,
       if (indicator != '') 'indicator',
       if (indicator != '') '$indicator',
@@ -91,8 +91,8 @@ class IEXClient {
       if (function == 'stock' && indicator == '') 'batch',
       if (function == 'intraday-prices') function,
       if (function == 'price') function,
-      if (function == 'latestPrice') 'quote',
-      if (function == 'latestPrice') function,
+      if (quoteRequest) 'quote',
+      if (quoteRequest) function,
       if (types == 'trade') 'dates',
       if (types == 'trade') 'trade',
       if (period == 'next') 'next',
@@ -108,8 +108,7 @@ class IEXClient {
         pathSegments: pathSegments,
         queryParameters: queryParams);
 
-    r.log("<http> Calling client with URL: " + uriRequest.toString(),
-        StackTrace.current);
+    r.log("<http> Calling client with URL: " + uriRequest.toString(), StackTrace.current);
 
     HttpClientResponse response;
 
@@ -141,6 +140,9 @@ class IEXClient {
   Future<HttpClientResponse> getUrlWithRetry(HttpClient httpClient, Uri url,
       {int maxRetries = 2}) async {
     HttpClientResponse response;
+
+    // print(url.toString());
+
     // for (var attempt = 0; attempt < maxRetries; attempt++) {
     final request = await httpClient.openUrl('GET', url);
     response = await request.close();
@@ -188,8 +190,7 @@ class IEXClient {
     return queryParams;
   }
 
-  _updateQueryMap(
-      Map<String, String> currentParams, String param, String? paramValue) {
+  _updateQueryMap(Map<String, String> currentParams, String param, String? paramValue) {
     if (paramValue != null && paramValue != '') {
       currentParams[param] = paramValue;
     }

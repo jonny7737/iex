@@ -15,12 +15,14 @@ class JSONObject {
       respJSON = "{'ERROR':$jsonString}";
     else if (jsonString.startsWith('<html>'))
       respJSON = "{'ERROR':$jsonString}";
+    else if (jsonString.startsWith('Unknown'))
+      respJSON = "{'ERROR':$jsonString}";
     else
       try {
         respJSON = json.decode(jsonString);
       } catch (e) {
         r.log(e.toString(), StackTrace.current);
-        this.jsonContents['error'] = 'jsonString';
+        this.jsonContents['error'] = e.toString();
         return;
       }
 
